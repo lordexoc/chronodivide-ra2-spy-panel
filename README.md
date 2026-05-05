@@ -2,9 +2,7 @@
 
 **If you find this useful, drop a ⭐ — it helps visibility.**
 
-![GitHub stars](https://img.shields.io/github/stars/lordexoc/chronodivide-ra2-cheat?style=social)
-
-**If you find this useful, drop a ⭐ — it helps visibility.**
+![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2Flordexoc%2Fchronodivide-ra2-cheat&count_bg=%2379C83D&title_bg=%23555555&icon=&emoji=&title=views&edge_flat=false)
 
 # ChronoDivide / Red Alert 2 Online - Cheat Panel (ESP/Maphack)
 
