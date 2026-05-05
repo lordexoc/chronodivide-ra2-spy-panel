@@ -1,3 +1,11 @@
+![GitHub stars](https://img.shields.io/github/stars/lordexoc/chronodivide-ra2-cheat?style=social)
+
+**If you find this useful, drop a ⭐ — it helps visibility.**
+
+![GitHub stars](https://img.shields.io/github/stars/lordexoc/chronodivide-ra2-cheat?style=social)
+
+**If you find this useful, drop a ⭐ — it helps visibility.**
+
 # ChronoDivide / Red Alert 2 Online - Cheat Panel (ESP/Maphack)
 
 > ⚠️ **For educational purposes only.** Demonstrates how browser-based lockstep multiplayer games expose client-side state.
