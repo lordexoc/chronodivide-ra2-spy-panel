@@ -1,7 +1,6 @@
 ![GitHub stars](https://img.shields.io/github/stars/lordexoc/chronodivide-ra2-spy-panel?style=social&cacheSeconds=200)
 
-**If you find this useful, drop a ⭐ — it helps visibility.**
-**If you'd like to see more features or updates, consider ⭐starring⭐ and following the repository.**
+**If you'd like to see more features and find this useful, drop a ⭐ — it helps visibility.**
 
 ![](https://komarev.com/ghpvc/?username=lordexoc&repo=chronodivide-ra2-spy-panel&color=brightgreen&label=views)
 
