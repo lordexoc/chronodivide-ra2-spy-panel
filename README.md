@@ -1,10 +1,10 @@
-![GitHub stars](https://img.shields.io/github/stars/lordexoc/chronodivide-ra2-cheat?style=social&cacheSeconds=300)
+![GitHub stars](https://img.shields.io/github/stars/lordexoc/chronodivide-ra2-spy-panel?style=social&cacheSeconds=300)
 
 **If you find this useful, drop a ⭐ — it helps visibility.**
 
-![](https://komarev.com/ghpvc/?username=lordexoc&repo=chronodivide-ra2-cheat&color=brightgreen&label=views)
+![](https://komarev.com/ghpvc/?username=lordexoc&repo=chronodivide-ra2-spy-panel&color=brightgreen&label=views)
 
-# ChronoDivide / Red Alert 2 Online - Cheat Panel (ESP/Maphack)
+# ChronoDivide / Red Alert 2 Online - Spy Panel
 
 > ⚠️ **For educational purposes only.** Demonstrates how browser-based lockstep multiplayer games expose client-side state.
 
