@@ -4,9 +4,19 @@
   if (window._spyInterval) clearInterval(window._spyInterval);
   if (document.getElementById('spy-panel')) document.getElementById('spy-panel').remove();
   
-  let lsMod = System._loader.modules['https://dos.zone/chronodivide/v17/network/gamestate/LockstepManager'];
+  function findModule(suffix) {
+    let mods = System._loader.modules;
+    for (let key of Object.keys(mods)) {
+      if (key.endsWith(suffix)) return mods[key];
+    }
+    return null;
+  }
+
+  let lsMod = findModule('/network/gamestate/LockstepManager');
+  if (!lsMod) { console.error('[SPY] LockstepManager module not found'); return; }
   let LS = lsMod.module.LockstepManager;
-  let pqMod = System._loader.modules['https://dos.zone/chronodivide/v17/game/player/production/ProductionQueue'];
+  let pqMod = findModule('/game/player/production/ProductionQueue');
+  if (!pqMod) { console.error('[SPY] ProductionQueue module not found'); return; }
   let QueueStatus = pqMod.module.QueueStatus;
   let QueueType = pqMod.module.QueueType;
   
