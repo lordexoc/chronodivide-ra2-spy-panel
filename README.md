@@ -41,3 +41,25 @@ ChronoDivide uses lockstep multiplayer — every client runs the full game simul
 
 ```js
 // Just paste spy.js contents into browser console
+```
+
+
+
+
+
+---
+
+## More to Come
+Planned features for upcoming releases:
+- 🗺️ **Map ESP overlay** — visualize all units, structures and harvesters directly on the in-game map
+- 📊 **Player win/loss stats** — track win rates and match history per player
+- 🎯 **Unit pathing prediction** — show enemy movement vectors in real-time
+- 🔔 **Custom alert system** — configurable triggers for specific units, tech or build orders
+- 💾 **Match replay export** — dump captured intel to JSON for post-game analysis
+- 🎨 **Themeable UI** — customizable panel layout, colors and opacity
+
+Have an idea? Open an [issue](https://github.com/lordexoc/chronodivide-ra2-spy-panel/issues) or PR.
+
+---
+
+**⭐ If you find this project useful, please leave a star — it really helps with visibility and motivates further development!**
