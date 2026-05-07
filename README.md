@@ -24,6 +24,7 @@
 - 🚨 Base proximity threat alert
 - ☢️ Super weapon status
 - 👥 Auto ally/enemy detection
+- 🏳️ RQ button — rage quit ranked matches without losing rating
 - Supports 1v1, 2v2, FFA
 
 ## How it works
