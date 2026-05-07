@@ -1,3 +1,5 @@
+// ChronoDivide / Red Alert 2 Online - Spy Panel + DC
+// https://github.com/lordexoc/chronodivide-ra2-spy-panel
 (function() {
   if (window._spyInterval) clearInterval(window._spyInterval);
   if (document.getElementById('spy-panel')) document.getElementById('spy-panel').remove();
@@ -53,6 +55,7 @@
       <button id="spy-minus" style="background:none;border:1px solid #888;color:#fff;width:20px;height:20px;cursor:pointer;border-radius:3px;margin:0 2px;font-size:12px;">−</button>
       <button id="spy-plus" style="background:none;border:1px solid #888;color:#fff;width:20px;height:20px;cursor:pointer;border-radius:3px;margin:0 2px;font-size:12px;">+</button>
       <button id="spy-mini" style="background:none;border:1px solid #888;color:#fff;width:20px;height:20px;cursor:pointer;border-radius:3px;margin:0 2px;font-size:12px;">_</button>
+      <button id="spy-dc" style="background:#600;border:1px solid #f00;color:#fff;width:26px;height:20px;cursor:pointer;border-radius:3px;margin:0 2px;font-size:9px;font-weight:bold;">RQ</button>
     </div>
   `;
   panel.appendChild(toolbar);
@@ -79,6 +82,27 @@
     panelMinimized = !panelMinimized;
     content.style.display = panelMinimized ? 'none' : 'block';
     document.getElementById('spy-mini').textContent = panelMinimized ? '□' : '_';
+  };
+  
+  // DC Button - Force Desync (rage quit without losing ranked points)
+  document.getElementById('spy-dc').onclick = () => {
+    try {
+      let playerMod = findModule('/game/Player');
+      if (!playerMod) { console.error('[DC] Player module not found'); return; }
+      let PlayerClass = playerMod.module.Player;
+      let desc = Object.getOwnPropertyDescriptor(PlayerClass.prototype, 'credits');
+      let game = window._game;
+      if (!game) { console.error('[DC] Game not found'); return; }
+      let players = game.getAllPlayers().filter(p => !p.isNeutral);
+      let myName = findMyName(game);
+      let me = players.find(p => p.name === myName) || players[0];
+      // +1 credit = hash mismatch = instant desync
+      desc.set.call(me, desc.get.call(me) + 1);
+      Object.defineProperty(PlayerClass.prototype, 'credits', desc);
+      console.log('[DC] ⚡ Desync triggered. Disconnecting...');
+    } catch(e) {
+      console.error('[DC] Failed:', e);
+    }
   };
   
   // Drag
@@ -267,5 +291,5 @@
   }
   
   window._spyInterval = setInterval(updatePanel, 500);
-  console.log('[SPY] ✓ Panel with resize/minimize/drag. Use +/- to scale, _ to minimize.');
+  console.log('[SPY] ✓ Panel loaded. +/- scale, _ minimize, DC = force desync (rage quit).');
 })();
