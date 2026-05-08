@@ -1,4 +1,4 @@
-// ChronoDivide / Red Alert 2 Online - Spy Panel + DC
+// ChronoDivide / Red Alert 2 Online - Spy Panel + Radar v3
 // https://github.com/lordexoc/chronodivide-ra2-spy-panel
 (function() {
   if (window._spyInterval) clearInterval(window._spyInterval);
@@ -30,6 +30,7 @@
   
   let panelScale = 1;
   let panelMinimized = false;
+  let radarVisible = true;
   
   let panel = document.createElement('div');
   panel.id = 'spy-panel';
@@ -37,12 +38,11 @@
     position:fixed; top:10px; left:10px; z-index:999999;
     background:rgba(10,10,30,0.92); border:2px solid #e94560;
     border-radius:8px; padding:0; font-family:monospace;
-    color:#fff; font-size:11px; width:300px;
+    color:#fff; font-size:11px; width:320px;
     text-shadow: 1px 1px 2px #000; max-height:90vh; overflow-y:auto;
     transform-origin: top left;
   `;
   
-  // Toolbar
   let toolbar = document.createElement('div');
   toolbar.style.cssText = `
     display:flex; justify-content:space-between; align-items:center;
@@ -52,6 +52,7 @@
   toolbar.innerHTML = `
     <span style="color:#e94560;font-weight:bold;font-size:10px;">SPY PANEL</span>
     <div>
+      <button id="spy-map" style="background:#030;border:1px solid #0f0;color:#0f0;width:30px;height:20px;cursor:pointer;border-radius:3px;margin:0 2px;font-size:8px;font-weight:bold;">MAP</button>
       <button id="spy-minus" style="background:none;border:1px solid #888;color:#fff;width:20px;height:20px;cursor:pointer;border-radius:3px;margin:0 2px;font-size:12px;">−</button>
       <button id="spy-plus" style="background:none;border:1px solid #888;color:#fff;width:20px;height:20px;cursor:pointer;border-radius:3px;margin:0 2px;font-size:12px;">+</button>
       <button id="spy-mini" style="background:none;border:1px solid #888;color:#fff;width:20px;height:20px;cursor:pointer;border-radius:3px;margin:0 2px;font-size:12px;">_</button>
@@ -60,16 +61,36 @@
   `;
   panel.appendChild(toolbar);
   
-  // Content
   let content = document.createElement('div');
   content.id = 'spy-content';
   content.style.cssText = 'padding:8px 10px; pointer-events:none;';
   content.innerHTML = '<div style="color:#fa0;">⏳ Waiting for game...</div>';
   panel.appendChild(content);
   
-  document.body.appendChild(panel);
+  let radarWrap = document.createElement('div');
+  radarWrap.style.cssText = 'padding:4px 10px 8px; border-top:1px solid #333;';
+  let radarCanvas = document.createElement('canvas');
+  const RADAR_SIZE = 300;
+  radarCanvas.width = RADAR_SIZE;
+  radarCanvas.height = RADAR_SIZE;
+  radarCanvas.style.cssText = 'display:block; width:100%; border:1px solid #0f0; border-radius:3px; background:#000;';
+  radarWrap.appendChild(radarCanvas);
+  panel.appendChild(radarWrap);
   
-  // Buton eventleri
+  document.body.appendChild(panel);
+  const ctx = radarCanvas.getContext('2d');
+  
+  let terrainCache = null;
+  let terrainCacheTick = 0;
+  
+  document.getElementById('spy-map').onclick = () => {
+    radarVisible = !radarVisible;
+    radarWrap.style.display = radarVisible ? 'block' : 'none';
+    let btn = document.getElementById('spy-map');
+    btn.style.background = radarVisible ? '#030' : '#300';
+    btn.style.borderColor = radarVisible ? '#0f0' : '#f00';
+    btn.style.color = radarVisible ? '#0f0' : '#f00';
+  };
   document.getElementById('spy-minus').onclick = () => {
     panelScale = Math.max(0.5, panelScale - 0.1);
     panel.style.transform = `scale(${panelScale})`;
@@ -81,31 +102,26 @@
   document.getElementById('spy-mini').onclick = () => {
     panelMinimized = !panelMinimized;
     content.style.display = panelMinimized ? 'none' : 'block';
+    radarWrap.style.display = (panelMinimized || !radarVisible) ? 'none' : 'block';
     document.getElementById('spy-mini').textContent = panelMinimized ? '□' : '_';
   };
   
-  // DC Button - Force Desync (rage quit without losing ranked points)
   document.getElementById('spy-dc').onclick = () => {
     try {
       let playerMod = findModule('/game/Player');
-      if (!playerMod) { console.error('[DC] Player module not found'); return; }
+      if (!playerMod) return;
       let PlayerClass = playerMod.module.Player;
       let desc = Object.getOwnPropertyDescriptor(PlayerClass.prototype, 'credits');
       let game = window._game;
-      if (!game) { console.error('[DC] Game not found'); return; }
+      if (!game) return;
       let players = game.getAllPlayers().filter(p => !p.isNeutral);
       let myName = findMyName(game);
       let me = players.find(p => p.name === myName) || players[0];
-      // +1 credit = hash mismatch = instant desync
       desc.set.call(me, desc.get.call(me) + 1);
       Object.defineProperty(PlayerClass.prototype, 'credits', desc);
-      console.log('[DC] ⚡ Desync triggered. Disconnecting...');
-    } catch(e) {
-      console.error('[DC] Failed:', e);
-    }
+    } catch(e) {}
   };
   
-  // Drag
   let dragging = false, dx = 0, dy = 0;
   toolbar.onmousedown = (e) => {
     if (e.target.tagName === 'BUTTON') return;
@@ -120,9 +136,7 @@
   };
   document.onmouseup = () => { dragging = false; };
   
-  // Benim player'ımı bul
   let cachedMyName = null;
-  
   function findMyName(game) {
     if (cachedMyName) return cachedMyName;
     try {
@@ -159,6 +173,158 @@
     return null;
   }
   
+  // ===== ISO TRANSFORM (45° döndürme, canvas'ı tam doldurur) =====
+  function createIsoTransform(bounds) {
+    const bx = bounds.x, by = bounds.y, bw = bounds.width, bh = bounds.height;
+    const S = RADAR_SIZE;
+    return function(rx, ry) {
+      const nx = (rx - bx) / bw;
+      const ny = (ry - by) / bh;
+      return {
+        x: ((nx - ny + 1) * 0.5) * S,
+        y: ((nx + ny) * 0.5) * S
+      };
+    };
+  }
+  
+  // ===== TERRAIN CACHE =====
+  function buildTerrainCache(game, iso) {
+    const off = document.createElement('canvas');
+    off.width = RADAR_SIZE;
+    off.height = RADAR_SIZE;
+    const oc = off.getContext('2d');
+    
+    oc.fillStyle = '#0a0a14';
+    oc.fillRect(0, 0, RADAR_SIZE, RADAR_SIZE);
+    
+    // Harita sınırı (ince çizgi)
+    const bounds = game.map.mapBounds.localSize;
+    const c = [
+      iso(bounds.x, bounds.y),
+      iso(bounds.x + bounds.width, bounds.y),
+      iso(bounds.x + bounds.width, bounds.y + bounds.height),
+      iso(bounds.x, bounds.y + bounds.height)
+    ];
+    oc.strokeStyle = 'rgba(0,150,0,0.3)';
+    oc.lineWidth = 0.5;
+    oc.beginPath();
+    oc.moveTo(c[0].x, c[0].y);
+    c.forEach(p => oc.lineTo(p.x, p.y));
+    oc.closePath();
+    oc.stroke();
+    
+    // Terrain renkleri
+    try {
+      game.map.tiles.forEach((tile) => {
+        if (!tile) return;
+        let color;
+        try { color = game.map.tiles.getTileRadarColor(tile); } catch(e) { return; }
+        if (!color) return;
+        const p = iso(tile.rx, tile.ry);
+        if (typeof color === 'object' && color.r !== undefined) {
+          oc.fillStyle = `rgb(${color.r},${color.g},${color.b})`;
+        } else if (typeof color === 'number') {
+          oc.fillStyle = `rgb(${(color>>16)&0xFF},${(color>>8)&0xFF},${color&0xFF})`;
+        } else if (typeof color === 'string') {
+          oc.fillStyle = color;
+        } else return;
+        oc.fillRect(p.x - 0.5, p.y - 0.5, 1.5, 1.5);
+      });
+    } catch(e) {}
+    
+    // Ore ağaçları
+    try {
+      game.updatableObjects.forEach((obj) => {
+        if (!obj || !obj.tile) return;
+        if ((obj.name || '').includes('TIB')) {
+          const p = iso(obj.tile.rx, obj.tile.ry);
+          oc.fillStyle = '#cc8800';
+          oc.beginPath();
+          oc.moveTo(p.x, p.y - 3);
+          oc.lineTo(p.x + 3, p.y);
+          oc.lineTo(p.x, p.y + 3);
+          oc.lineTo(p.x - 3, p.y);
+          oc.closePath();
+          oc.fill();
+        }
+      });
+    } catch(e) {}
+    
+    return off;
+  }
+  
+  // ===== RADAR UPDATE =====
+  function updateRadar() {
+    if (!radarVisible) return;
+    let game = window._game;
+    if (!game) return;
+    
+    let bounds;
+    try { bounds = game.map.mapBounds.localSize; } catch(e) { return; }
+    
+    const iso = createIsoTransform(bounds);
+    const tick = game.currentTick || 0;
+    
+    if (!terrainCache || tick - terrainCacheTick > 300) {
+      terrainCache = buildTerrainCache(game, iso);
+      terrainCacheTick = tick;
+    }
+    
+    ctx.drawImage(terrainCache, 0, 0);
+    
+    let myName = findMyName(game);
+    let allPlayers;
+    try { allPlayers = game.getAllPlayers(); } catch(e) { return; }
+    let nonNeutral = allPlayers.filter(p => !p.isNeutral);
+    const enemyColors = ['#e94560', '#ff6b35', '#ffd700', '#ff00ff'];
+    
+    nonNeutral.forEach((player, pIdx) => {
+      const isMe = player.name === myName;
+      try {
+        player.getOwnedObjects().forEach(u => {
+          if (!u.tile) return;
+          const p = iso(u.tile.rx, u.tile.ry);
+          
+          if (isMe) {
+            ctx.fillStyle = '#0f0';
+            if (u.isBuilding && u.isBuilding()) {
+              ctx.fillRect(p.x - 2, p.y - 2, 5, 5);
+            } else {
+              ctx.fillRect(p.x - 1, p.y - 1, 3, 3);
+            }
+          } else {
+            const color = enemyColors[pIdx % enemyColors.length];
+            ctx.fillStyle = color;
+            if (u.isBuilding && u.isBuilding()) {
+              ctx.fillRect(p.x - 3, p.y - 3, 7, 7);
+              ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+              ctx.lineWidth = 0.5;
+              ctx.strokeRect(p.x - 3, p.y - 3, 7, 7);
+            } else {
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            if (u.name === 'HARV' || u.name === 'CMIN' || (u.rules && u.rules.harvester)) {
+              ctx.strokeStyle = '#ff0';
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+              ctx.stroke();
+            }
+          }
+        });
+      } catch(e) {}
+    });
+    
+    ctx.font = '9px monospace';
+    ctx.fillStyle = '#0f0'; ctx.fillText('■ Me', 4, RADAR_SIZE - 6);
+    ctx.fillStyle = '#e94560'; ctx.fillText('● Enemy', 50, RADAR_SIZE - 6);
+    ctx.fillStyle = '#ff0'; ctx.fillText('○ Harv', 120, RADAR_SIZE - 6);
+    ctx.fillStyle = '#cc8800'; ctx.fillText('◆ Ore', 175, RADAR_SIZE - 6);
+  }
+  
+  // ===== TEXT PANEL =====
   function updatePanel() {
     if (panelMinimized) return;
     let game = window._game;
@@ -288,8 +454,9 @@
     });
     
     content.innerHTML = html;
+    updateRadar();
   }
   
   window._spyInterval = setInterval(updatePanel, 500);
-  console.log('[SPY] ✓ Panel loaded. +/- scale, _ minimize, DC = force desync (rage quit).');
+  console.log('[SPY] ✓ Panel + Radar v3. Full-size 45° iso map.');
 })();
