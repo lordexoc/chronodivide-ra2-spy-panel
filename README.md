@@ -10,8 +10,8 @@
 
 ## Preview
 
-![Preview](preview.png)
-![Preview 2](preview2.png)
+![Preview](preview3.png)
+![Preview 2](preview4.png)
 
 ## Features
 
