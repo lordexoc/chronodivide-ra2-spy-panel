@@ -457,6 +457,24 @@
     updateRadar();
   }
   
+  // ===== VERSION CHECK =====
+  const SPY_VERSION = '0.0.6';
+  (function checkVersion() {
+    try {
+      fetch('https://dayzturk.com/api/checkversion/?t=' + Date.now(), { mode: 'cors' })
+        .then(r => r.json())
+        .then(data => {
+          if (data.version && data.version !== SPY_VERSION) {
+            let banner = document.createElement('div');
+            banner.style.cssText = 'padding:4px 8px;background:#630;border-bottom:1px solid #fa0;color:#ff0;font-size:10px;text-align:center;';
+            banner.textContent = '⚠ New version available: v' + data.version + ' — Update from GitHub';
+            toolbar.after(banner);
+          }
+        })
+        .catch(() => {});
+    } catch(e) {}
+  })();
+
   window._spyInterval = setInterval(updatePanel, 500);
-  console.log('[SPY] ✓ Panel + Radar v3. Full-size 45° iso map.');
+  console.log('[SPY] ✓ Panel + Radar v3.1. Full-size 45° iso map.');
 })();
