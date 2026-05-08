@@ -56,6 +56,7 @@
       <button id="spy-minus" style="background:none;border:1px solid #888;color:#fff;width:20px;height:20px;cursor:pointer;border-radius:3px;margin:0 2px;font-size:12px;">−</button>
       <button id="spy-plus" style="background:none;border:1px solid #888;color:#fff;width:20px;height:20px;cursor:pointer;border-radius:3px;margin:0 2px;font-size:12px;">+</button>
       <button id="spy-mini" style="background:none;border:1px solid #888;color:#fff;width:20px;height:20px;cursor:pointer;border-radius:3px;margin:0 2px;font-size:12px;">_</button>
+      <button id="spy-reveal" style="background:#330;border:1px solid #ff0;color:#ff0;width:55px;height:20px;cursor:pointer;border-radius:3px;margin:0 2px;font-size:7px;font-weight:bold;">OPEN MAP</button>
       <button id="spy-dc" style="background:#600;border:1px solid #f00;color:#fff;width:26px;height:20px;cursor:pointer;border-radius:3px;margin:0 2px;font-size:9px;font-weight:bold;">RQ</button>
     </div>
   `;
@@ -105,20 +106,75 @@
     radarWrap.style.display = (panelMinimized || !radarVisible) ? 'none' : 'block';
     document.getElementById('spy-mini').textContent = panelMinimized ? '□' : '_';
   };
-  
+    // Hash bypass flag
+  let hashDisabled = false;
+  function disableHash() {
+    if (hashDisabled) return;
+    let gc = window._ls?.gservCon;
+    if (!gc) return;
+    gc._origSendHash = gc.sendGameStateHash;
+    gc.sendGameStateHash = function() {};
+    hashDisabled = true;
+  }
+
+
+  // Map reveal toggle
+  let revealActive = false;
+  let revealInterval = null;
+  document.getElementById('spy-reveal').onclick = () => {
+    revealActive = !revealActive;
+    let btn = document.getElementById('spy-reveal');
+    if (revealActive) {
+      disableHash();
+      btn.textContent = 'MAP ON';
+      btn.style.background = '#060';
+      btn.style.borderColor = '#0f0';
+      btn.style.color = '#0f0';
+      revealInterval = setInterval(() => {
+        try {
+          let game = window._game;
+          if (!game) return;
+          let myName = findMyName(game);
+          if (!myName) return;
+          let shroud = game.mapShroudTrait;
+          if (!shroud) return;
+          let me = game.getAllPlayers().find(p => p.name === myName);
+          if (!me) return;
+          let myShroud = shroud.getPlayerShroud(me);
+          if (myShroud && myShroud.revealAll) {
+            myShroud.revealAll();
+          } else if (myShroud && myShroud.tiles) {
+            myShroud.tiles.fill(2);
+          }
+        } catch(e) {}
+      }, 200);
+    } else {
+      btn.textContent = 'OPEN MAP';
+      btn.style.background = '#330';
+      btn.style.borderColor = '#ff0';
+      btn.style.color = '#ff0';
+      if (revealInterval) { clearInterval(revealInterval); revealInterval = null; }
+    }
+  };
+
   document.getElementById('spy-dc').onclick = () => {
     try {
-      let playerMod = findModule('/game/Player');
-      if (!playerMod) return;
-      let PlayerClass = playerMod.module.Player;
-      let desc = Object.getOwnPropertyDescriptor(PlayerClass.prototype, 'credits');
-      let game = window._game;
-      if (!game) return;
-      let players = game.getAllPlayers().filter(p => !p.isNeutral);
-      let myName = findMyName(game);
-      let me = players.find(p => p.name === myName) || players[0];
-      desc.set.call(me, desc.get.call(me) + 1);
-      Object.defineProperty(PlayerClass.prototype, 'credits', desc);
+      let gc = window._ls?.gservCon;
+      if (!gc) return;
+      // Hash'i geri aç (origSendHash varsa)
+      if (gc._origSendHash) {
+        gc.sendGameStateHash = gc._origSendHash;
+        hashDisabled = false;
+      }
+      // 100ms bekle ki hash tekrar aktif olsun, sonra state boz
+      setTimeout(() => {
+        let game = window._game;
+        if (!game) return;
+        let players = game.getAllPlayers().filter(p => !p.isNeutral);
+        let myName = findMyName(game);
+        let me = players.find(p => p.name === myName) || players[0];
+        if (me) me.credits = (me.credits || 0) + 77777;
+      }, 100);
     } catch(e) {}
   };
   
@@ -458,7 +514,7 @@
   }
   
   // ===== VERSION CHECK =====
-  const SPY_VERSION = '0.0.6';
+  const SPY_VERSION = '3.1.0';
   (function checkVersion() {
     try {
       fetch('https://dayzturk.com/api/checkversion/?t=' + Date.now(), { mode: 'cors' })
