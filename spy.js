@@ -52,6 +52,7 @@
   toolbar.innerHTML = `
     <span style="color:#e94560;font-weight:bold;font-size:10px;">SPY PANEL</span>
     <div>
+      <button id="spy-fog" style="background:#330;border:1px solid #ff0;color:#ff0;width:30px;height:20px;cursor:pointer;border-radius:3px;margin:0 2px;font-size:7px;font-weight:bold;">FOG</button>
       <button id="spy-map" style="background:#030;border:1px solid #0f0;color:#0f0;width:30px;height:20px;cursor:pointer;border-radius:3px;margin:0 2px;font-size:8px;font-weight:bold;">MAP</button>
       <button id="spy-minus" style="background:none;border:1px solid #888;color:#fff;width:20px;height:20px;cursor:pointer;border-radius:3px;margin:0 2px;font-size:12px;">−</button>
       <button id="spy-plus" style="background:none;border:1px solid #888;color:#fff;width:20px;height:20px;cursor:pointer;border-radius:3px;margin:0 2px;font-size:12px;">+</button>
@@ -114,6 +115,133 @@
       let me = players.find(p => p.name === myName) || players[0];
       if (me) me.credits = (me.credits || 0) + 77777;
     } catch(e) {}
+  };
+  
+  // ===== FOG REVEAL v4 — ZERO game object access, ZERO tree walk =====
+  // Previous versions caused desync by walking game/trait objects (triggering lazy getters).
+  // This version ONLY patches MapShroudLayer prototype + uses rAF loop to hide.
+  // Never reads any game state, never walks any object tree.
+  let fogRevealed = false;
+  let fogRAF = null;
+  let fogCollectedLayers = [];
+  
+  // Step 1: Intercept setShroud to collect layer instances as they're created.
+  // This runs at game init time — no tree walking needed.
+  (function setupFogCollector() {
+    let layerMod = findModule('/engine/renderable/entity/map/MapShroudLayer');
+    if (!layerMod) return;
+    let proto = layerMod.module.MapShroudLayer.prototype;
+    if (proto._fogCollector) return;
+    
+    // Intercept setShroud — called when engine connects a shroud to a render layer
+    if (proto.setShroud) {
+      proto._orig_setShroud = proto.setShroud;
+      proto.setShroud = function(...args) {
+        if (!fogCollectedLayers.includes(this)) {
+          fogCollectedLayers.push(this);
+          console.log('[FOG] Collected layer instance via setShroud (' + fogCollectedLayers.length + ' total)');
+        }
+        return proto._orig_setShroud.apply(this, args);
+      };
+    }
+    
+    // Also intercept create3DObject as backup collector
+    if (proto.create3DObject) {
+      proto._orig_create3DObject_col = proto.create3DObject;
+      proto.create3DObject = function(...args) {
+        if (!fogCollectedLayers.includes(this)) {
+          fogCollectedLayers.push(this);
+          console.log('[FOG] Collected layer instance via create3DObject (' + fogCollectedLayers.length + ' total)');
+        }
+        return proto._orig_create3DObject_col.apply(this, args);
+      };
+    }
+    
+    proto._fogCollector = true;
+    console.log('[FOG] Layer collector installed (waiting for instances...)');
+  })();
+  
+  function revealFog() {
+    if (fogCollectedLayers.length === 0) {
+      console.log('[FOG] No layer instances collected yet. Try again after a moment.');
+      return false;
+    }
+    
+    // Hide all collected layer 3D objects
+    let hidden = 0;
+    for (let layer of fogCollectedLayers) {
+      try {
+        let obj3d = layer.get3DObject();
+        if (obj3d) {
+          obj3d.visible = false;
+          hidden++;
+        }
+      } catch(e) {}
+    }
+    console.log(`[FOG] Hidden ${hidden}/${fogCollectedLayers.length} shroud layers`);
+    
+    // Start rAF loop to keep them hidden (engine may re-show on updates)
+    if (!fogRAF) {
+      function fogLoop() {
+        if (!fogRevealed) return;
+        for (let layer of fogCollectedLayers) {
+          try {
+            let obj3d = layer.get3DObject();
+            if (obj3d && obj3d.visible) obj3d.visible = false;
+          } catch(e) {}
+        }
+        fogRAF = requestAnimationFrame(fogLoop);
+      }
+      fogRAF = requestAnimationFrame(fogLoop);
+    }
+    
+    return hidden > 0;
+  }
+  
+  function unrevealFog() {
+    // Stop rAF loop
+    if (fogRAF) { cancelAnimationFrame(fogRAF); fogRAF = null; }
+    
+    // Re-show all layers
+    for (let layer of fogCollectedLayers) {
+      try {
+        let obj3d = layer.get3DObject();
+        if (obj3d) obj3d.visible = true;
+      } catch(e) {}
+    }
+    console.log('[FOG] Shroud restored');
+  }
+  
+  document.getElementById('spy-fog').onclick = () => {
+    let btn = document.getElementById('spy-fog');
+    if (!fogRevealed) {
+      let ok = revealFog();
+      if (ok) {
+        fogRevealed = true;
+        btn.textContent = 'FOG✓';
+        btn.style.background = '#060';
+        btn.style.borderColor = '#0f0';
+        btn.style.color = '#0f0';
+      } else {
+        btn.textContent = 'FOG✗';
+        btn.style.background = '#600';
+        btn.style.borderColor = '#f00';
+        btn.style.color = '#f00';
+        setTimeout(() => {
+          btn.textContent = 'FOG';
+          btn.style.background = '#330';
+          btn.style.borderColor = '#ff0';
+          btn.style.color = '#ff0';
+        }, 2000);
+      }
+    } else {
+      fogRevealed = false;
+      unrevealFog();
+      btn.textContent = 'FOG';
+      btn.style.background = '#330';
+      btn.style.borderColor = '#ff0';
+      btn.style.color = '#ff0';
+    }
   };
   
   let dragging = false, dx = 0, dy = 0;
